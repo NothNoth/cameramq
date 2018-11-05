@@ -13,8 +13,9 @@ A rabbitMQ webcam streamer
       "RefreshMs": 500         <-- capture and emit frame delay
     }
 
+Run cameramq with no arguments to dump detected available cameras and pick proper one to setup your config file.
 
- ## AMQP
+## AMQP
 
   - camera_stream : frames are emitted on this chan. ContentType matches with the frame type.
   - camera_ctrl : listens on this chan for config updates. Currently only receives "application/frameratems" with new frame rate

@@ -192,7 +192,7 @@ func (cmq *CameraMQ) sendFrame(format string, frame []byte) error {
 	return err
 }
 
-func (cmq *CameraMQ) DumpCameras() {
+func DumpCameras() {
 	idx := 0
 	for {
 		dev := fmt.Sprintf("/dev/video%d", idx)
@@ -224,6 +224,9 @@ func main() {
 
 	if len(os.Args) != 2 {
 		fmt.Println("Usage: " + os.Args[0] + " <config file>")
+		fmt.Println("")
+		fmt.Println("*********** Supported Webcams ***********")
+		DumpCameras()
 		return
 	}
 
@@ -233,7 +236,6 @@ func main() {
 		return
 	}
 	defer cmq.Destroy()
-	cmq.DumpCameras()
 
 	cmq.ReceiveCommands()
 	cmq.EmitFrames()
