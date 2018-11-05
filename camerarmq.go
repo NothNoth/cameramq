@@ -22,6 +22,7 @@ type CameraConfig struct {
 	Width     uint32
 	Height    uint32
 	RefreshMs uint32
+	RmqServer string
 }
 
 type CameraMQ struct {
@@ -62,7 +63,7 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 	}
 
 	//Setup AMQP
-	cmq.conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	cmq.conn, err = amqp.Dial(cmq.config.RmqServer)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +92,7 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 		false,           // durable
 		false,           // delete when unused
 		false,           // exclusive
-		false,           // no-wait
+		true,            // no-wait
 		nil,             // arguments
 	)
 	if err != nil {
@@ -104,7 +105,8 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 func (cmq *CameraMQ) Destroy() {
 	cmq.ch.Close()
 	cmq.conn.Close()
-
+	cmq.webcamHandler.StopStreaming()
+	cmq.webcamHandler.Close()
 }
 
 func (cmq *CameraMQ) ReceiveCommands() error {
