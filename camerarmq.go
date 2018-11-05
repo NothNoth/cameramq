@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/blackjack/webcam"
@@ -32,11 +33,13 @@ type CameraMQ struct {
 	ch            *amqp.Channel
 	ctrlQueue     amqp.Queue
 	streamQueue   amqp.Queue
+	killed        bool
 }
 
 func InitCameraMQ(configFile string) (*CameraMQ, error) {
 	var cmq CameraMQ
 	var err error
+	cmq.killed = false
 
 	//Load config
 	data, err := ioutil.ReadFile(configFile)
@@ -103,6 +106,7 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 }
 
 func (cmq *CameraMQ) Destroy() {
+	cmq.killed = true
 	cmq.ch.Close()
 	cmq.conn.Close()
 	cmq.webcamHandler.StopStreaming()
@@ -177,7 +181,13 @@ func (cmq *CameraMQ) EmitFrames() error {
 			fmt.Println("Unknown encoding: " + cmq.config.Encoding)
 			return nil
 		}
+
+		if cmq.killed == true {
+			break
+		}
 	}
+
+	return nil
 }
 
 func (cmq *CameraMQ) sendFrame(format string, frame []byte) error {
@@ -239,6 +249,17 @@ func main() {
 	}
 	defer cmq.Destroy()
 
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			fmt.Println(sig)
+			cmq.killed = true
+		}
+	}()
+
 	cmq.ReceiveCommands()
 	cmq.EmitFrames()
+
+	cmq.Destroy()
 }
