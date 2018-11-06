@@ -17,5 +17,8 @@ Run cameramq with no arguments to dump detected available cameras and pick prope
 
 ## AMQP
 
-  - camera_stream : frames are emitted on this chan. ContentType matches with the frame type.
-  - camera_ctrl : listens on this chan for config updates. Currently only receives "application/frameratems" with new frame rate
+
+| AMQP channel | IN/OUT | Content-Type | Data | Description |
+| ------------ | ------ | ------------ | ---- | ----------- |
+| camera_stream | OUT   | image/jpeg   | JPEG | Captured frame. Content-Type matches with the type of the picture found in data |
+| camera_ctrl   | IN    |application/frameratems | New frame rate in ms (int32) | Changes the capture frame rate  |
