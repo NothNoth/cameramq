@@ -59,7 +59,8 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	cmq.webcamHandler.SetAutoWhiteBalance(true)
+	cmq.webcamHandler.SetBufferCount(2)
 	err = cmq.webcamHandler.StartStreaming()
 	if err != nil {
 		return nil, err
@@ -145,23 +146,21 @@ func (cmq *CameraMQ) ReceiveCommands() error {
 
 func (cmq *CameraMQ) EmitFrames() error {
 	for {
+		var frame []byte
+		var err error
 		time.Sleep(time.Duration(cmq.config.RefreshMs) * time.Millisecond)
-		err := cmq.webcamHandler.WaitForFrame(1)
 
-		switch err.(type) {
-		case nil:
-		case *webcam.Timeout:
-			log.Print("Timeout: " + err.Error())
-			continue
-		default:
-			log.Print("WaitForFrame failed: " + err.Error())
-			continue
-		}
-
-		frame, err := cmq.webcamHandler.ReadFrame()
-		if err != nil {
-			log.Print("ReadFrame failed: " + err.Error())
-			continue
+		for {
+			if cmq.killed == true {
+				return nil
+			}
+			tmp, _ := cmq.webcamHandler.ReadFrame()
+			if len(tmp) == 0 {
+				continue
+			}
+			frame = make([]byte, len(tmp))
+			copy(frame, tmp)
+			break
 		}
 
 		switch cmq.config.Encoding {
@@ -173,17 +172,15 @@ func (cmq *CameraMQ) EmitFrames() error {
 				log.Print(err)
 				continue
 			}
-
 			//JPEG is fine, emit on rmq chan
 			cmq.sendFrame("jpeg", frame)
-
 		default:
 			fmt.Println("Unknown encoding: " + cmq.config.Encoding)
 			return nil
 		}
 
 		if cmq.killed == true {
-			break
+			return nil
 		}
 	}
 
