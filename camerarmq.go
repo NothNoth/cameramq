@@ -16,6 +16,11 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const (
+	exchangeCtrl   = "camera_ctrl"
+	exchangeStream = "camera_stream"
+)
+
 type CameraConfig struct {
 	Device    string
 	Encoding  string
@@ -32,7 +37,6 @@ type CameraMQ struct {
 	conn          *amqp.Connection
 	ch            *amqp.Channel
 	ctrlQueue     amqp.Queue
-	streamQueue   amqp.Queue
 	killed        bool
 }
 
@@ -76,28 +80,49 @@ func InitCameraMQ(configFile string) (*CameraMQ, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//Create control queue
-	cmq.ctrlQueue, err = cmq.ch.QueueDeclare(
-		"camera_ctrl", // name
-		false,         // durable
-		false,         // delete when unused
-		false,         // exclusive
-		false,         // no-wait
-		nil,           // arguments
+	//Setup Control exchange & queue
+	err = cmq.ch.ExchangeDeclare(
+		exchangeCtrl, // name
+		"fanout",     // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	//Create Stream queue
-	cmq.streamQueue, err = cmq.ch.QueueDeclare(
-		"camera_stream", // name
-		false,           // durable
-		false,           // delete when unused
-		false,           // exclusive
-		true,            // no-wait
-		nil,             // arguments
+	cmq.ctrlQueue, err = cmq.ch.QueueDeclare(
+		"",    // name
+		false, // durable
+		false, // delete when usused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	//Bind this queue to this exchange so that exchange will publish here
+	err = cmq.ch.QueueBind(
+		cmq.ctrlQueue.Name, // queue name
+		"",                 // routing key
+		exchangeCtrl,       // exchange
+		false,
+		nil)
+
+	//Setup stream exchange
+	err = cmq.ch.ExchangeDeclare(
+		exchangeStream, // name
+		"fanout",       // type
+		true,           // durable
+		false,          // auto-deleted
+		false,          // internal
+		false,          // no-wait
+		nil,            // arguments
 	)
 	if err != nil {
 		return nil, err
@@ -189,10 +214,10 @@ func (cmq *CameraMQ) EmitFrames() error {
 
 func (cmq *CameraMQ) sendFrame(format string, frame []byte) error {
 	err := cmq.ch.Publish(
-		"",                   // exchange
-		cmq.streamQueue.Name, // routing key
-		false,                // mandatory
-		false,                // immediate
+		exchangeStream, // exchange
+		"",             // routing key
+		false,          // mandatory
+		false,          // immediate
 		amqp.Publishing{
 			ContentType: fmt.Sprintf("image/%s", format),
 			Body:        frame,

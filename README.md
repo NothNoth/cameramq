@@ -18,7 +18,7 @@ Run cameramq with no arguments to dump detected available cameras and pick prope
 ## AMQP
 
 
-| AMQP channel | IN/OUT | Content-Type | Data | Description |
+| AMQP exchange | IN/OUT | Content-Type | Data | Description |
 | ------------ | ------ | ------------ | ---- | ----------- |
 | camera_stream | OUT   | image/jpeg   | JPEG | Captured frame. Content-Type matches with the type of the picture found in data |
 | camera_ctrl   | IN    |application/frameratems | New frame rate in ms (int32) | Changes the capture frame rate  |
